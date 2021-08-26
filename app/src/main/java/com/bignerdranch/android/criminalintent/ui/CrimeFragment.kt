@@ -1,7 +1,5 @@
-package com.bignerdranch.android.criminalintent
+package com.bignerdranch.android.criminalintent.ui
 
-import Crime
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,15 +9,16 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.ImageButton
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
+import com.bignerdranch.android.criminalintent.R
+import com.bignerdranch.android.criminalintent.domain.Crime
 
 private lateinit var titleField: EditText
 private lateinit var dateButton: Button
 private lateinit var solvedCheckBox: CheckBox
 
 class CrimeFragment: Fragment() {
+
     private lateinit var crime: Crime
 
     override fun onCreate(savedInstanceState: Bundle?) {

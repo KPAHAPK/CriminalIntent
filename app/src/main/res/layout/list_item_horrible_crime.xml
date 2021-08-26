@@ -4,35 +4,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="8dp">
+    android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/crime_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Crime Title"
-        android:textSize="16sp"
-        app:layout_constraintBottom_toTopOf="@+id/crime_date"
-        app:layout_constraintStart_toStartOf="@+id/crime_date" />
-
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/ic_baseline_star_24"
-        app:layout_constraintStart_toEndOf="@+id/crime_title"
-        app:layout_constraintTop_toTopOf="@+id/crime_title" />
-
-
-    <TextView
-        android:id="@+id/crime_date"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="30dp"
-        android:text="Crime Date"
-        android:textSize="16sp"
-        app:layout_constraintEnd_toEndOf="parent"
+    <include
+        android:id="@+id/include"
+        layout="@layout/list_item_crime"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -40,10 +16,12 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="8dp"
         android:text="police"
         android:textSize="10sp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/crime_date" />
+        app:layout_constraintTop_toBottomOf="@+id/include" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
