@@ -2,7 +2,6 @@ package com.bignerdranch.android.criminalintent.ui
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bignerdranch.android.criminalintent.R
 import com.bignerdranch.android.criminalintent.domain.Crime
 import com.bignerdranch.android.criminalintent.viewmodel.CrimeListViewModel
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -49,8 +49,8 @@ class CrimeListFragment : Fragment() {
         val view = inflater.inflate(R.layout.fragment_crime_list, container, false)
         crimeRecyclerView = view.findViewById(R.id.crime_recycler_view) as RecyclerView
         crimeRecyclerView.apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = myAdapter
+            this.layoutManager = LinearLayoutManager(context)
+            this.adapter = myAdapter
         }
         return view
     }
@@ -59,14 +59,12 @@ class CrimeListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         crimeListViewModel.crimeListLiveData.observe(
-            viewLifecycleOwner
-        ) { crimes ->
-            myAdapter?.submitList(crimes)
-//            crimes?.let {
-//                Log.i(TAG, "Got crimes ${crimes.size}")
-                updateUI(crimes)
-//            }
-        }
+            viewLifecycleOwner, { crimes ->
+                crimes?.let {
+                    updateUI(crimes)
+                }
+            }
+        )
     }
 
     override fun onDetach() {
@@ -76,6 +74,7 @@ class CrimeListFragment : Fragment() {
 
     private fun updateUI(crimes: List<Crime>) {
         myAdapter = CrimeAdapter(crimes)
+        myAdapter?.submitList(crimes)
         crimeRecyclerView.adapter = myAdapter
     }
 
@@ -101,7 +100,7 @@ class CrimeListFragment : Fragment() {
                 this.crime = crime
                 titleTextView.text = this.crime.title
 
-                val pattern = "EEEE, MMM dd, yyyy"
+                val pattern = "EEEE, MMM dd, yyyy HH:mm"
                 val simpleDateFormat = SimpleDateFormat(pattern, Locale.getDefault())
                 dateTextView.text = simpleDateFormat.format(this.crime.date)
 
