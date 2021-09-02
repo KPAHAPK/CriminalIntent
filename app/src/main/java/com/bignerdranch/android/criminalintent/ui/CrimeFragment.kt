@@ -1,7 +1,9 @@
 package com.bignerdranch.android.criminalintent.ui
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -37,6 +39,7 @@ private lateinit var solvedCheckBox: CheckBox
 private lateinit var timeButton: Button
 private lateinit var reportButton: Button
 private lateinit var suspectButton: Button
+private lateinit var suspectNumberButton: Button
 
 private lateinit var pickContactContract: ActivityResultContract<Uri, Uri?>
 private lateinit var pickContactCallback: ActivityResultCallback<Uri?>
@@ -89,19 +92,81 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                 if (resultCode != Activity.RESULT_OK || intent == null) {
                     return null
                 } else {
+                    var contactID: String? = null
                     val contactUri: Uri? = intent.data
-                    val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)
-                    val cursor = requireActivity().contentResolver.query(contactUri!!, queryFields, null, null, null)
+                    val queryFields = arrayOf(
+                        ContactsContract.Contacts.DISPLAY_NAME,
+                        ContactsContract.Contacts._ID
+                    )
+                    val cursor = contactUri?.let {
+                        requireActivity().contentResolver.query(
+                            it,
+                            queryFields,
+                            null,
+                            null,
+                            null
+                        )
+                    }
                     cursor?.use {
                         if (it.count == 0) {
                             return null
                         }
                         it.moveToFirst()
                         val suspect = it.getString(0)
+                        contactID = it.getString(1)
                         crime.suspect = suspect
-                        crimeDetailViewModel.saveCrime(crime)
                         suspectButton.text = suspect
                     }
+                    val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+                    val phoneQueryFields = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    val phoneWhereClause =
+                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?"
+                    val phoneQueryParameters = arrayOf(contactID)
+                    val phoneCursor = requireActivity().contentResolver.query(
+                        phoneUri,
+                        phoneQueryFields,
+                        phoneWhereClause,
+                        phoneQueryParameters,
+                        null
+                    )
+
+                    var phoneNumber: String
+                    val allNumbers: ArrayList<String> = arrayListOf()
+                    allNumbers.clear()
+
+                    phoneCursor?.use {
+                        it.moveToFirst()
+                        while (!it.isAfterLast) {
+                            phoneNumber = it.getString(0)
+                            allNumbers.add(phoneNumber)
+                            it.moveToNext()
+                        }
+                    }
+                    val items = allNumbers.toTypedArray()
+
+                    var selectedNumber: String = ""
+
+                    val builder = AlertDialog.Builder(context)
+                        .setTitle("Choose a Number:")
+                        .setItems(items) { _, which ->
+                            selectedNumber = allNumbers[which].replace("_", "")
+                            crime.suspectPhoneNumber = selectedNumber
+                            suspectNumberButton.text = crime.suspectPhoneNumber
+                        }
+                    val alert = builder.create()
+                    when {
+                        allNumbers.size > 1 -> alert.show()
+                        allNumbers[0].isNotEmpty() -> {
+                            selectedNumber = allNumbers[0].toString().replace("-", "")
+                            crime.suspectPhoneNumber = selectedNumber
+                            suspectNumberButton.text = crime.suspectPhoneNumber
+                        }
+                        else -> {
+                            suspectNumberButton.text = "no phone number found"
+                            crime.suspectPhoneNumber = ""
+                        }
+                    }
+                    crimeDetailViewModel.saveCrime(crime)
                 }
                 return intent.data
             }
@@ -124,6 +189,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
         timeButton = view.findViewById(R.id.crime_time) as Button
         reportButton = view.findViewById(R.id.crime_report) as Button
         suspectButton = view.findViewById(R.id.crime_suspect) as Button
+        suspectNumberButton = view.findViewById(R.id.crime_suspect_number) as Button
         return view
     }
 
@@ -205,13 +271,22 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                 pickContactLauncher.launch(ContactsContract.Contacts.CONTENT_URI)
             }
             val packageManager: PackageManager = requireActivity().packageManager
-            val resolvedActivity: ResolveInfo? = packageManager.resolveActivity(pickContactIntent, PackageManager.MATCH_DEFAULT_ONLY)
-            if (resolvedActivity == null){
+            val resolvedActivity: ResolveInfo? =
+                packageManager.resolveActivity(pickContactIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            if (resolvedActivity == null) {
                 isEnabled = false
             }
         }
 
-
+        suspectNumberButton.setOnClickListener {
+            Intent(Intent.ACTION_DIAL).apply {
+                val phone = crime.suspectPhoneNumber
+                data = Uri.parse("tel:$phone")
+            }.also { intent ->
+                val chooserIntent = Intent.createChooser(intent, "Call via:")
+                startActivity(chooserIntent)
+            }
+        }
 
 
     }
