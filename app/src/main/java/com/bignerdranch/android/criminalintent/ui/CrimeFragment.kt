@@ -3,33 +3,33 @@ package com.bignerdranch.android.criminalintent.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.EditText
+import android.widget.*
+import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentResultListener
 import androidx.lifecycle.ViewModelProvider
 import com.bignerdranch.android.criminalintent.R
-import com.bignerdranch.android.criminalintent.domain.Crime
-import com.bignerdranch.android.criminalintent.domain.DatePickerFragment
-import com.bignerdranch.android.criminalintent.domain.TimePickerFragment
+import com.bignerdranch.android.criminalintent.domain.*
 import com.bignerdranch.android.criminalintent.viewmodel.CrimeDetailViewModel
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,15 +40,20 @@ private lateinit var timeButton: Button
 private lateinit var reportButton: Button
 private lateinit var suspectButton: Button
 private lateinit var suspectNumberButton: Button
+private lateinit var photoButton: ImageButton
+private lateinit var photoView: ImageView
+
 
 private lateinit var pickContactContract: ActivityResultContract<Uri, Uri?>
 private lateinit var pickContactCallback: ActivityResultCallback<Uri?>
 private lateinit var pickContactLauncher: ActivityResultLauncher<Uri>
+private lateinit var takePhotoContractLauncher: ActivityResultLauncher<Intent>
 
 private const val TAG = "CrimeFragment"
 private const val ARG_CRIME_ID = "crime_id"
 private const val DIALOG_DATE = "DialogDate"
 private const val DIALOG_TIME = "DialogTime"
+private const val DIALOG_THUMBNAIL = "DialogTime"
 private const val REQUEST_DATE = "RequestDate"
 private const val REQUEST_TIME = "RequestTime"
 private const val REQUEST_CONTACT = 1
@@ -74,6 +79,11 @@ class CrimeFragment : Fragment(), FragmentResultListener {
 
 
     private lateinit var crime: Crime
+    private lateinit var photoFile: File
+    private lateinit var photoUri: Uri
+    private var widthPhotoView: Int = 0
+    private var heightPhotoView: Int = 0
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +127,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                         crime.suspect = suspect
                         suspectButton.text = suspect
                     }
+
                     val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
                     val phoneQueryFields = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
                     val phoneWhereClause =
@@ -144,7 +155,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                     }
                     val items = allNumbers.toTypedArray()
 
-                    var selectedNumber: String = ""
+                    var selectedNumber: String
 
                     val builder = AlertDialog.Builder(context)
                         .setTitle("Choose a Number:")
@@ -157,7 +168,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                     when {
                         allNumbers.size > 1 -> alert.show()
                         allNumbers[0].isNotEmpty() -> {
-                            selectedNumber = allNumbers[0].toString().replace("-", "")
+                            selectedNumber = allNumbers[0].replace("-", "")
                             crime.suspectPhoneNumber = selectedNumber
                             suspectNumberButton.text = crime.suspectPhoneNumber
                         }
@@ -175,6 +186,17 @@ class CrimeFragment : Fragment(), FragmentResultListener {
             Log.d(TAG, "OnActivityResult() called with result: $contactUri")
         }
         pickContactLauncher = registerForActivityResult(pickContactContract, pickContactCallback)
+
+        takePhotoContractLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result: ActivityResult ->
+                if (result.resultCode == Activity.RESULT_OK) {
+                    requireActivity().revokeUriPermission(
+                        photoUri,
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                    updatePhotoView()
+                }
+            }
     }
 
     override fun onCreateView(
@@ -190,6 +212,8 @@ class CrimeFragment : Fragment(), FragmentResultListener {
         reportButton = view.findViewById(R.id.crime_report) as Button
         suspectButton = view.findViewById(R.id.crime_suspect) as Button
         suspectNumberButton = view.findViewById(R.id.crime_suspect_number) as Button
+        photoButton = view.findViewById(R.id.crime_camera) as ImageButton
+        photoView = view.findViewById(R.id.crime_photo) as ImageView
         return view
     }
 
@@ -199,6 +223,12 @@ class CrimeFragment : Fragment(), FragmentResultListener {
             { crime ->
                 crime?.let {
                     this.crime = crime
+                    photoFile = crimeDetailViewModel.getPhotoFile(crime)
+                    photoUri = FileProvider.getUriForFile(
+                        requireActivity(),
+                        "com.bignerdranch.android.criminalintent.fileprovider",
+                        photoFile
+                    )
                     updateUI()
                 }
             })
@@ -270,30 +300,85 @@ class CrimeFragment : Fragment(), FragmentResultListener {
             setOnClickListener {
                 pickContactLauncher.launch(ContactsContract.Contacts.CONTENT_URI)
             }
-            val packageManager: PackageManager = requireActivity().packageManager
-            val resolvedActivity: ResolveInfo? =
-                packageManager.resolveActivity(pickContactIntent, PackageManager.MATCH_DEFAULT_ONLY)
-            if (resolvedActivity == null) {
+            if (checkPackage(pickContactIntent)) {
                 isEnabled = false
             }
         }
 
-        suspectNumberButton.setOnClickListener {
-            Intent(Intent.ACTION_DIAL).apply {
+        suspectNumberButton.apply {
+            val chooserIntent: Intent
+            val dialNumberIntent = Intent(Intent.ACTION_DIAL).apply {
                 val phone = crime.suspectPhoneNumber
                 data = Uri.parse("tel:$phone")
-            }.also { intent ->
-                val chooserIntent = Intent.createChooser(intent, "Call via:")
+            }
+                .also {
+                    chooserIntent = Intent.createChooser(it, "Call via:")
+                }
+            setOnClickListener {
                 startActivity(chooserIntent)
+            }
+            if (checkPackage(dialNumberIntent)) {
+                isEnabled = false
             }
         }
 
+        photoButton.apply {
+            val captureImage = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            val packageManager = requireActivity().packageManager
+            val resolveActivity: ResolveInfo? =
+                packageManager.resolveActivity(captureImage, PackageManager.MATCH_DEFAULT_ONLY)
+            if (resolveActivity == null) {
+                isEnabled = false
+            }
+            setOnClickListener {
+                captureImage.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+                val cameraActivities: List<ResolveInfo> = packageManager.queryIntentActivities(
+                    captureImage,
+                    PackageManager.MATCH_DEFAULT_ONLY
+                )
+                for (cameraActivity in cameraActivities) {
+                    requireActivity().grantUriPermission(
+                        cameraActivity.activityInfo.packageName,
+                        photoUri,
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    )
+                }
+                takePhotoContractLauncher.launch(captureImage)
+            }
+        }
 
+        photoView.apply {
+            setOnClickListener {
+                ThumbnailZoomFragment.newInstance(crime.photoFileName).apply {
+                    show(this@CrimeFragment.childFragmentManager, DIALOG_THUMBNAIL)
+                }
+            }
+            viewTreeObserver.also {
+                if (it.isAlive) {
+                    it.addOnGlobalLayoutListener {
+                        widthPhotoView = this.width
+                        heightPhotoView = this.height
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkPackage(intent: Intent): Boolean {
+        val packageManager: PackageManager = requireActivity().packageManager
+        val resolveActivity: ResolveInfo? =
+            packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return resolveActivity == null
     }
 
     override fun onStop() {
         super.onStop()
         crimeDetailViewModel.saveCrime(crime)
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        requireActivity().revokeUriPermission(photoUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
     }
 
 
@@ -312,6 +397,21 @@ class CrimeFragment : Fragment(), FragmentResultListener {
         }
         if (crime.suspect.isNotEmpty()) {
             suspectButton.text = crime.suspect
+        }
+        if (crime.suspectPhoneNumber.isNotEmpty()) {
+            suspectNumberButton.text = crime.suspectPhoneNumber
+        }
+
+        updatePhotoView()
+    }
+
+    private fun updatePhotoView() {
+        if (photoFile.exists()) {
+//           val bitmap = getScaledBitmap(photoFile.path, requireActivity())
+            val bitmap = getScaledBitmap(photoFile.path, widthPhotoView, heightPhotoView)
+            photoView.setImageBitmap(bitmap)
+        } else {
+            photoView.setImageDrawable(null)
         }
     }
 
