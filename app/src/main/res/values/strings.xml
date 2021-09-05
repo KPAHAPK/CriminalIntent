@@ -13,6 +13,11 @@
     <string name="crime_report_unsolved">The case is not solved</string>
     <string name="crime_report_no_suspect">there is no suspect.</string>
     <string name="crime_report_suspect">the suspect is %s.</string>
-    <string name="crime_report_subject">CriminalIntent Crime Report</string>\
+    <string name="crime_report_subject">CriminalIntent Crime Report</string>
     <string name="send_report">Send crime report via</string>
+    <string name="choose_number">Choose a Number:</string>
+    <string name="crime_photo_button_description">Take photo of crime scene</string>
+    <string name="crime_photo_no_image_description">Crime scene photo (not set)</string>
+    <string name="crime_photo_image_description">Crime scene photo (set)</string>
+    <string name="crime_list_item_description">Crime title %s. Crime date %s. %s</string>
 </resources>

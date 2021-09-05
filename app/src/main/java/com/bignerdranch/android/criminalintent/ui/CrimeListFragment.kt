@@ -2,11 +2,12 @@ package com.bignerdranch.android.criminalintent.ui
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.view.*
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DiffUtil
@@ -83,12 +84,6 @@ class CrimeListFragment : Fragment() {
         )
     }
 
-    override fun onStart() {
-        super.onStart()
-        Log.d(TAG, "_____________________________onStart")
-
-    }
-
 
     override fun onDetach() {
         super.onDetach()
@@ -126,7 +121,7 @@ class CrimeListFragment : Fragment() {
             textViewAddCrime.apply {
                 visibility = View.VISIBLE
             }
-        }else {
+        } else {
             buttonAddCrime.visibility = View.INVISIBLE
             textViewAddCrime.visibility = View.INVISIBLE
         }
@@ -134,7 +129,7 @@ class CrimeListFragment : Fragment() {
     }
 
     fun addCrime() {
-        val crime = Crime(title = "New Crime")
+        val crime = Crime(title = R.string.new_crime.toString())
         crimeListViewModel.addCrime(crime)
         callbacks?.onCrimeSelected(crime.id)
     }
@@ -156,15 +151,30 @@ class CrimeListFragment : Fragment() {
                 this.crime = crime
                 titleTextView.text = this.crime.title
 
-                val pattern = "EEEE, MMM dd, yyyy HH:mm"
-                val simpleDateFormat = SimpleDateFormat(pattern, Locale.getDefault())
+                val usPattern = "EEEE, MMM dd, yyyy HH:mm"
+                val ruPattern = "EEEE, dd MMM, yyyy HH:mm"
+                val simpleDateFormat: SimpleDateFormat =
+                    when (Locale.getDefault().language) {
+                        "ru" -> SimpleDateFormat(ruPattern, Locale("ru"))
+                        else -> SimpleDateFormat(usPattern, Locale.getDefault())
+                    }
                 dateTextView.text = simpleDateFormat.format(this.crime.date)
 
-                solvedImageView.visibility = if (this.crime.isSolved) {
-                    View.VISIBLE
+                var isSolvedStr = ""
+                if (this.crime.isSolved) {
+                    solvedImageView.visibility = View.VISIBLE
+                    isSolvedStr = getString(R.string.crime_report_solved)
                 } else {
-                    View.GONE
+                    solvedImageView.visibility = View.GONE
+                    isSolvedStr = getString(R.string.crime_report_unsolved)
                 }
+
+                itemView.contentDescription = getString(
+                    R.string.crime_list_item_description,
+                    titleTextView.text.toString(),
+                    dateTextView.text.toString(),
+                    isSolvedStr
+                )
             }
 
             init {

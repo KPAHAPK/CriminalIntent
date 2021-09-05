@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="crime_photo_button_description">Сделать фото места преступления</string>
+    <string name="crime_photo_no_image_description">Фото места преступления (не добавлено)</string>
+    <string name="crime_photo_image_description">Фото места преступления (добалено)</string>
+    <string name="crime_list_item_description">Название преступления %s. Дата преступления %s. %s</string>
+</resources>

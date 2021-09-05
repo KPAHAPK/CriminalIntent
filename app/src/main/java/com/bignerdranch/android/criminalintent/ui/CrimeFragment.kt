@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
 import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.text.Editable
@@ -158,7 +159,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                     var selectedNumber: String
 
                     val builder = AlertDialog.Builder(context)
-                        .setTitle("Choose a Number:")
+                        .setTitle(R.string.choose_number)
                         .setItems(items) { _, which ->
                             selectedNumber = allNumbers[which].replace("_", "")
                             crime.suspectPhoneNumber = selectedNumber
@@ -194,8 +195,15 @@ class CrimeFragment : Fragment(), FragmentResultListener {
                         photoUri,
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
-                    updatePhotoView()
+                    photoView.postDelayed({
+                        photoView.announceForAccessibility("New crime scene has been taken")
+                    }, 0)
+                } else {
+                    photoView.postDelayed({
+                        photoView.announceForAccessibility("Crime scene hasn't been taken")
+                    }, 0)
                 }
+                updatePhotoView()
             }
     }
 
@@ -410,8 +418,10 @@ class CrimeFragment : Fragment(), FragmentResultListener {
 //           val bitmap = getScaledBitmap(photoFile.path, requireActivity())
             val bitmap = getScaledBitmap(photoFile.path, widthPhotoView, heightPhotoView)
             photoView.setImageBitmap(bitmap)
+            photoView.contentDescription = getString(R.string.crime_photo_image_description)
         } else {
             photoView.setImageDrawable(null)
+            photoView.contentDescription = getString(R.string.crime_photo_no_image_description)
         }
     }
 
@@ -426,7 +436,7 @@ class CrimeFragment : Fragment(), FragmentResultListener {
         val suspect = if (crime.suspect.isBlank()) {
             getString(R.string.crime_report_no_suspect)
         } else {
-            getString(R.string.crime_report_suspect)
+            getString(R.string.crime_report_suspect, crime.suspect)
         }
         return getString(R.string.crime_report, crime.title, dateString, solvedString, suspect)
     }
